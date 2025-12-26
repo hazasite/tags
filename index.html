@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HAZA TAGS - Liquid AI</title>
+    
+    <!-- Three.js Library -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --primary: #3b82f6; /* Blue */
+            --text: #ffffff;
+        }
+
+        body {
+            margin: 0;
+            overflow-x: hidden;
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #050505;
+            color: var(--text);
+            -webkit-tap-highlight-color: transparent; /* Remove blue tap box on mobile */
+        }
+
+        /* 3D CANVAS */
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            z-index: 0;
+        }
+
+        /* --- BIG LOGO SECTION --- */
+        .hero-logo-container {
+            position: fixed;
+            top: 22%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            z-index: 5;
+            pointer-events: none;
+            transition: all 0.3s ease-out;
+            white-space: nowrap;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .logo-hash {
+            font-size: 80px;
+            font-weight: 900;
+            color: var(--primary);
+            text-shadow: 0 0 40px rgba(59, 130, 246, 0.6);
+        }
+
+        .logo-text-haza {
+            font-size: 80px;
+            font-weight: 900;
+            color: white;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .logo-text-tags {
+            font-size: 80px;
+            font-weight: 900;
+            color: white;
+            background-color: var(--primary);
+            padding: 5px 25px;
+            border-radius: 15px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            box-shadow: 0 0 40px rgba(59, 130, 246, 0.5);
+        }
+
+        /* --- UI LAYER --- */
+        #ui-layer {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            padding-top: 40vh; /* Default Desktop Padding */
+            box-sizing: border-box;
+        }
+
+        /* --- LIQUID GLASS STYLE --- */
+        .liquid-glass {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.01));
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 30px;
+            border: none;
+            box-shadow: 
+                0 8px 32px 0 rgba(0, 0, 0, 0.37),
+                inset 0 0 15px rgba(255, 255, 255, 0.05),
+                inset 0 1px 1px rgba(255, 255, 255, 0.2);
+        }
+
+        /* SEARCH AREA */
+        .search-wrapper {
+            width: 100%;
+            max-width: 700px;
+            display: flex;
+            gap: 10px;
+            padding: 10px;
+            transition: transform 0.3s;
+            box-sizing: border-box;
+        }
+        
+        .search-wrapper {
+            @extend .liquid-glass;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.02));
+        }
+
+        select {
+            background: rgba(0, 0, 0, 0.2);
+            color: var(--primary);
+            border: none;
+            padding: 0 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            outline: none;
+            cursor: pointer;
+            height: 50px; /* Fixed height for touch consistency */
+        }
+        
+        select option { background: #111; color: white; }
+
+        input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: white;
+            padding: 15px 10px;
+            font-size: 16px;
+            outline: none;
+            font-weight: 500;
+            min-width: 0; /* Prevents overflow in flex */
+        }
+        
+        input::placeholder { color: rgba(255,255,255,0.5); }
+
+        button.generate-btn {
+            background: var(--primary);
+            border: none;
+            padding: 0 30px;
+            height: 50px;
+            border-radius: 25px;
+            color: white;
+            font-weight: 900;
+            cursor: pointer;
+            transition: 0.3s;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+            white-space: nowrap;
+        }
+
+        button.generate-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* RESULTS GRID */
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+            margin-top: 50px;
+            padding-bottom: 50px;
+            display: none;
+        }
+
+        /* CARD STYLES */
+        .card {
+            padding: 25px;
+            transition: 0.4s;
+            display: none;
+            opacity: 0;
+            transform: translateY(20px);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .card.show-card {
+            display: block;
+            animation: popUp 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes popUp {
+            0% { opacity: 0; transform: translateY(40px) scale(0.9); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .card h3 { 
+            margin-top: 0; 
+            color: var(--primary); 
+            display: flex; 
+            align-items: center; 
+            gap: 10px;
+            font-size: 1.2rem;
+            text-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
+            flex-wrap: wrap;
+        }
+
+        .output-box {
+            background: rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 15px;
+            min-height: 80px;
+            font-size: 0.95rem;
+            color: #eee;
+            margin-bottom: 15px;
+            white-space: pre-wrap;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.2);
+            word-wrap: break-word; /* Prevents overflow */
+        }
+
+        .copy-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: var(--primary);
+            padding: 8px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            float: right;
+            font-weight: bold;
+        }
+        
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-bottom-color: var(--primary);
+            border-radius: 50%;
+            display: none;
+            margin: 40px auto;
+            animation: rotation 1s linear infinite;
+        }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* =========================================
+           MOBILE RESPONSIVE FIXES (MEDIA QUERIES)
+           ========================================= */
+        
+        @media (max-width: 900px) {
+            .logo-hash, .logo-text-haza, .logo-text-tags { font-size: 60px; }
+            .hero-logo-container { top: 20%; }
+        }
+
+        @media (max-width: 600px) {
+            /* 1. Fix Logo Size & Position */
+            .hero-logo-container { 
+                flex-direction: column; /* Stack logo elements */
+                gap: 5px; 
+                top: 15%; /* Move higher up */
+            }
+            .logo-hash { display: none; /* Hide Hash on small mobile for clean look */ }
+            .logo-text-haza { font-size: 40px; }
+            .logo-text-tags { font-size: 40px; padding: 2px 15px; border-radius: 10px; }
+            
+            /* 2. Adjust Padding to fit screen */
+            #ui-layer { 
+                padding-top: 35vh; 
+                padding-left: 15px;
+                padding-right: 15px;
+            }
+
+            /* 3. Stack Input Fields vertically */
+            .search-wrapper { 
+                flex-direction: column; 
+                border-radius: 20px; 
+                padding: 15px;
+                gap: 15px;
+            }
+            
+            select { width: 100%; text-align: center; }
+            input { width: 100%; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+            button.generate-btn { width: 100%; }
+
+            /* 4. Fix Grid overflow */
+            .results-grid {
+                grid-template-columns: 1fr; /* Single column */
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 3D Background -->
+    <div id="canvas-container"></div>
+
+    <!-- LOGO SECTION -->
+    <div class="hero-logo-container" id="heroLogo">
+        <div class="logo-hash">#</div>
+        <div class="logo-text-haza">HAZA</div>
+        <div class="logo-text-tags">TAGS</div>
+    </div>
+
+    <!-- UI LAYER -->
+    <div id="ui-layer">
+        
+        <!-- Search Box -->
+        <div class="search-wrapper liquid-glass">
+            <select id="platformSelect">
+                <option value="all">All Platforms</option>
+                <option value="tiktok">TikTok</option>
+                <option value="youtube">YouTube</option>
+                <option value="instagram">Instagram</option>
+            </select>
+            <input type="text" id="videoTitle" placeholder="Enter topic...">
+            <button class="generate-btn" onclick="generateTags()">GENERATE</button>
+        </div>
+
+        <div id="loader" class="loader"></div>
+        <div id="statusText" style="margin-top:10px; color:rgba(255,255,255,0.6); font-size:12px; display:none;">AI Processing...</div>
+
+        <!-- RESULTS GRID -->
+        <div class="results-grid" id="resultsArea">
+            <!-- TikTok -->
+            <div class="card liquid-glass" id="card-tiktok">
+                <h3>🎵 TikTok</h3>
+                <div class="output-box" id="tiktok-box"></div>
+                <button class="copy-btn" onclick="copyToClipboard('tiktok-box')">Copy</button>
+            </div>
+            <!-- YouTube Tags -->
+            <div class="card liquid-glass" id="card-youtube-tags">
+                <h3>📺 YT Keywords</h3>
+                <div class="output-box" id="youtube-tags"></div>
+                <button class="copy-btn" onclick="copyToClipboard('youtube-tags')">Copy</button>
+            </div>
+            <!-- YouTube Hash -->
+            <div class="card liquid-glass" id="card-youtube-hash">
+                <h3>#️⃣ YT Hashtags</h3>
+                <div class="output-box" id="youtube-hashtags"></div>
+                <button class="copy-btn" onclick="copyToClipboard('youtube-hashtags')">Copy</button>
+            </div>
+            <!-- Instagram -->
+            <div class="card liquid-glass" id="card-insta">
+                <h3>📸 Instagram</h3>
+                <div class="output-box" id="insta-box"></div>
+                <button class="copy-btn" onclick="copyToClipboard('insta-box')">Copy</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- THREE.JS -->
+    <script type="module">
+        import * as THREE from 'three';
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        // PARTICLES
+        const pGeo = new THREE.BufferGeometry();
+        const pCount = 1200; 
+        const pArray = new Float32Array(pCount * 3);
+        for(let i=0; i<pCount*3; i++) pArray[i] = (Math.random()-0.5)*35;
+        pGeo.setAttribute('position', new THREE.BufferAttribute(pArray, 3));
+        
+        const pMat = new THREE.PointsMaterial({ 
+            size: 0.04, 
+            color: 0x3b82f6, 
+            transparent: true, 
+            opacity: 0.7 
+        });
+        const pMesh = new THREE.Points(pGeo, pMat);
+        scene.add(pMesh);
+
+        camera.position.z = 5;
+
+        let mouseX = 0, mouseY = 0;
+        document.addEventListener('mousemove', (e) => {
+            mouseX = (e.clientX / window.innerWidth) - 0.5;
+            mouseY = (e.clientY / window.innerHeight) - 0.5;
+
+            // Only move logo on desktop to prevent weird jumping on mobile scroll
+            if(window.innerWidth > 768) {
+                const logo = document.getElementById('heroLogo');
+                const xOffset = mouseX * 30;
+                const yOffset = mouseY * 15;
+                logo.style.transform = `translate(calc(-50% + ${xOffset}px), calc(-50% + ${yOffset}px)) perspective(1000px) rotateX(${-mouseY * 5}deg) rotateY(${mouseX * 5}deg)`;
+            }
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+            pMesh.rotation.y = -0.001; 
+            pMesh.rotation.x = mouseY * 0.05;
+            renderer.render(scene, camera);
+        }
+        animate();
+        
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth/window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+
+    <!-- LOGIC -->
+    <script>
+        async function generateTags() {
+            const title = document.getElementById('videoTitle').value;
+            const platform = document.getElementById('platformSelect').value;
+            const loader = document.getElementById('loader');
+            const statusText = document.getElementById('statusText');
+            const results = document.getElementById('resultsArea');
+
+            const cards = {
+                tiktok: document.getElementById('card-tiktok'),
+                youtubeTags: document.getElementById('card-youtube-tags'),
+                youtubeHash: document.getElementById('card-youtube-hash'),
+                insta: document.getElementById('card-insta')
+            };
+
+            if (!title) {
+                alert("Please enter a topic!");
+                return;
+            }
+
+            loader.style.display = 'block';
+            statusText.style.display = 'block';
+            results.style.display = 'none';
+            
+            Object.values(cards).forEach(card => {
+                card.classList.remove('show-card');
+                card.style.display = 'none'; 
+            });
+
+            const systemPrompt = `
+            You are a social media SEO expert.
+            Topic: "${title}"
+            REQUIREMENT: Provide 15-20 distinct tags per category.
+            Output JSON:
+            {
+                "tiktok": ["#tag1", "#tag2", ...],
+                "instagram": ["#tag1", "#tag2", ...],
+                "youtube_tags": "tag1, tag2, tag3, ...",
+                "youtube_hashtags": ["#tag1", "#tag2", ...]
+            }
+            `;
+
+            const url = `https://text.pollinations.ai/${encodeURIComponent(systemPrompt)}?seed=${Math.floor(Math.random() * 1000)}`;
+
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error("AI Error");
+                
+                const rawText = await response.text();
+                const jsonStr = cleanAIResponse(rawText);
+                const data = JSON.parse(jsonStr);
+
+                document.getElementById('tiktok-box').innerText = Array.isArray(data.tiktok) ? data.tiktok.join(' ') : "";
+                document.getElementById('youtube-tags').innerText = data.youtube_tags || "";
+                document.getElementById('youtube-hashtags').innerText = Array.isArray(data.youtube_hashtags) ? data.youtube_hashtags.join(' ') : "";
+                document.getElementById('insta-box').innerText = Array.isArray(data.instagram) ? data.instagram.join(' ') : "";
+
+                results.style.display = 'grid'; 
+
+                const show = (element, delay) => {
+                    element.style.display = 'block';
+                    setTimeout(() => { element.classList.add('show-card'); }, delay);
+                };
+
+                let delayCounter = 100;
+
+                if (platform === 'all' || platform === 'tiktok') { show(cards.tiktok, delayCounter); delayCounter += 150; }
+                if (platform === 'all' || platform === 'youtube') { show(cards.youtubeTags, delayCounter); delayCounter += 150; show(cards.youtubeHash, delayCounter); delayCounter += 150; }
+                if (platform === 'all' || platform === 'instagram') { show(cards.insta, delayCounter); }
+                
+                // Better smooth scroll for mobile
+                setTimeout(() => {
+                    const yOffset = -50; 
+                    const y = results.getBoundingClientRect().top + window.pageYOffset + yOffset;
+                    window.scrollTo({top: y, behavior: 'smooth'});
+                }, 500);
+
+            } catch (error) {
+                console.error(error);
+                alert("Generation failed. Please try again.");
+            } finally {
+                loader.style.display = 'none';
+                statusText.style.display = 'none';
+            }
+        }
+
+        function cleanAIResponse(text) {
+            const firstOpen = text.indexOf('{');
+            const lastClose = text.lastIndexOf('}');
+            if (firstOpen !== -1 && lastClose !== -1) return text.substring(firstOpen, lastClose + 1);
+            return text;
+        }
+
+        function copyToClipboard(id) {
+            const text = document.getElementById(id).innerText;
+            navigator.clipboard.writeText(text);
+            const btn = document.querySelector(`button[onclick="copyToClipboard('${id}')"]`);
+            const old = btn.innerText;
+            btn.innerText = "COPIED!";
+            setTimeout(() => btn.innerText = old, 2000);
+        }
+    </script>
+</body>
+</html>
